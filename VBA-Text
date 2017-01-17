@@ -1,0 +1,56 @@
+Option Explicit
+
+Public Sub GetZipcodesLouisville()
+    Application.ScreenUpdating = False
+    Const MILLISECOND As Double = 0.000000011574
+    Const CITY_ST_USA As String = ",+LOUISVILLE,+KY,+United+States"
+    Const ADDRESS_COLUMN As Long = 3
+    Const ZIPCODE_COLUMN As Long = 7
+    Dim errorCount As Long
+    Dim targetAddress As String
+    Dim targetZipcode As String
+    Dim i As Long
+    'Because the google geocoding API has a query limit, it was easier to use cells instead of an array
+    For i = 1 To 2
+        Application.Wait (Now + MILLISECOND * 200)
+        targetAddress = Cells(i, ADDRESS_COLUMN) & CITY_ST_USA
+        targetZipcode = RetrieveZipcodeFromGoogle(targetAddress, errorCount)
+        Cells(i, ZIPCODE_COLUMN) = targetZipcode
+    Next
+    
+    Application.ScreenUpdating = True
+    MsgBox "Completed with " & errorCount & " errors"
+End Sub
+
+Private Function RetrieveZipcodeFromGoogle(ByVal Address As String, ByRef errorCount As Long) As String
+' sourced from: http://forum.chandoo.org/threads/find-latitude-and-longitude-of-any-address-using-google-map-api-and-vba.7253/
+    On Error GoTo ErrorHandler
+    Const API_KEY As String = "Key Text" 'insert key
+    Const POSTAL_CODE As String = "<type>postal_code</type>"
+    Dim formattedAddress As String
+    Dim targetURL As String
+    Dim bodyText As String
+    Dim targetSpan As String
+    Dim targetXMLMap As Object
+
+    formattedAddress = Replace(Address, " ", "+")
+    targetURL = "https://maps.googleapis.com/maps/api/geocode/xml?address=""" & formattedAddress & ",+" & "&sensor=false&key=" & API_KEY
+   
+    Set targetXMLMap = CreateObject("msxml2.xmlhttp")
+    With targetXMLMap
+        .Open "get", targetURL, False
+        .send
+        bodyText = .responseText
+    End With
+    targetSpan = Trim(bodyText)
+    Set targetXMLMap = Nothing
+    If Not InStr(1, targetSpan, POSTAL_CODE) Then
+        RetrieveZipcodeFromGoogle = Mid(targetSpan, InStr(1, targetSpan, POSTAL_CODE) - 20, 5)
+        Exit Function
+    End If
+ErrorHandler:
+    RetrieveZipcodeFromGoogle = "Err"
+    errorCount = errorCount + 1
+End Function
+
+
